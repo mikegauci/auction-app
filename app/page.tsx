@@ -422,32 +422,7 @@ export default function Home() {
                     )}
                   </Button>
                   
-                  <div className="flex space-x-2">
-                    <Button
-                      onClick={resetAuction}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      <RotateCcw className="w-4 h-4 mr-2" />
-                      Reset
-                    </Button>
 
-                    {generatedVideoUrl && (
-                      <Button
-                        onClick={() => {
-                          const a = document.createElement('a');
-                          a.href = generatedVideoUrl;
-                          a.download = `auction-${selectedAvatar?.name || 'video'}.mp4`;
-                          a.click();
-                        }}
-                        variant="outline"
-                        className="flex-1"
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Download
-                      </Button>
-                    )}
-                  </div>
 
 
 
