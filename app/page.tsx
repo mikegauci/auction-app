@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, Gavel, Volume2, Download, Users, Clock, DollarSign } from 'lucide-react';
+import { Pause, Gavel, Volume2, Users, Clock, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -53,6 +53,7 @@ export default function Home() {
   const [currentBid, setCurrentBid] = useState(auctionItem.currentBid);
   const [bidders, setBidders] = useState(47);
   const [timeRemaining, setTimeRemaining] = useState('5:24');
+  const [isScrolled, setIsScrolled] = useState(false);
   
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const animationRef = useRef<number>();
@@ -98,13 +99,11 @@ export default function Home() {
           hasCustomVoice: false
         };
         
-        // Combine filtered D-ID avatars with custom avatar (John Wick first)
-        const allAvatars = [customAvatar, ...filteredAvatars];
+        // Only use John Wick avatar
+        const allAvatars = [customAvatar];
         
         setAvatars(allAvatars);
-        if (allAvatars.length > 0 && !selectedAvatar) {
-          setSelectedAvatar(allAvatars[0]);
-        }
+        setSelectedAvatar(customAvatar); // Always set John Wick as selected
       } catch (error) {
         console.error('Error fetching avatars:', error);
         setAvatarError(error instanceof Error ? error.message : 'Failed to load avatars');
@@ -115,6 +114,25 @@ export default function Home() {
 
     fetchAvatars();
   }, []);
+
+  // Scroll detection for mobile fixed avatar
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      setIsScrolled(scrollTop > 300); // Show fixed avatar after scrolling 300px
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Preload John Wick image for fixed avatar
+  useEffect(() => {
+    if (selectedAvatar?.image) {
+      const img = new Image();
+      img.src = selectedAvatar.image;
+    }
+  }, [selectedAvatar]);
 
   const generateDIDVideo = async (text: string) => {
     if (!selectedAvatar) {
@@ -260,20 +278,7 @@ export default function Home() {
     }
   };
 
-  const resetAuction = () => {
-    speechSynthesis.cancel();
-    setIsPlaying(false);
-    setAudioProgress(0);
-    setGeneratedVideoUrl('');
-    setVideoStatus('');
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0;
-    }
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-    }
-  };
+
 
   const handleVideoEnded = () => {
     setIsPlaying(false);
@@ -291,25 +296,25 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900">
       {/* Header */}
       <div className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center space-x-4">
-              <Gavel className="w-8 h-8 text-blue-600" />
+              <Gavel className="w-10 h-10 text-blue-600 flex-shrink-0" />
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">Premier Auctions</h1>
-                <p className="text-sm text-slate-600">Live Firearms Auction</p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Premier Auctions</h1>
+                <p className="text-sm sm:text-base text-slate-600 mt-1">Live Firearms Auction</p>
               </div>
             </div>
-            <div className="flex items-center space-x-6 text-sm">
-              <div className="flex items-center space-x-2">
-                <Users className="w-4 h-4 text-slate-500" />
-                <span>{bidders} bidders</span>
+            <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+              <div className="flex items-center space-x-2 bg-slate-50 px-3 py-2 rounded-lg">
+                <Users className="w-5 h-5 text-slate-500" />
+                <span className="text-sm font-medium">{bidders} bidders</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <Clock className="w-4 h-4 text-red-500" />
-                <span className="text-red-600 font-medium">{timeRemaining}</span>
+              <div className="flex items-center space-x-2 bg-red-50 px-3 py-2 rounded-lg">
+                <Clock className="w-5 h-5 text-red-500" />
+                <span className="text-sm font-bold text-red-600">{timeRemaining}</span>
               </div>
-              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 px-3 py-1.5 text-sm font-semibold">
                 LIVE
               </Badge>
             </div>
@@ -319,6 +324,107 @@ export default function Home() {
 
       <div className="container mx-auto px-4 py-6">
         <div className="grid lg:grid-cols-3 gap-6">
+          {/* Mobile: Auctioneer First, Desktop: Right Column */}
+          <div className="lg:hidden space-y-6">
+            {/* Mobile Auctioneer Section */}
+            <Card className="border-slate-200">
+              <CardContent className="p-4">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Live Auctioneer</h3>
+                    {isPlaying && (
+                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                        <div className="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></div>
+                        LIVE
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    {generatedVideoUrl ? (
+                      <div className="w-full aspect-square rounded-lg overflow-hidden border border-slate-200">
+                        <video
+                          ref={videoRef}
+                          src={generatedVideoUrl}
+                          className="w-full h-full object-cover"
+                          autoPlay
+                          onEnded={handleVideoEnded}
+                          controls
+                        />
+                      </div>
+                    ) : selectedAvatar ? (
+                      <div className={`w-full aspect-square rounded-lg overflow-hidden border border-slate-200 ${isPlaying && !generatedVideoUrl ? 'animate-pulse' : ''}`}>
+                        <img 
+                          src={selectedAvatar.image} 
+                          alt={selectedAvatar.name}
+                          className="w-full h-full object-cover"
+                        />
+                        {isPlaying && !generatedVideoUrl && (
+                          <div className="absolute inset-0 bg-gradient-to-t from-blue-500/10 to-transparent"></div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="w-full aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center">
+                        <p className="text-slate-500">Loading auctioneer...</p>
+                      </div>
+                    )}
+                    
+                    {(isGenerating || isPlaying) && (
+                      <div className="absolute bottom-2 left-2">
+                        <div className="flex space-x-1">
+                          {[...Array(3)].map((_, i) => (
+                            <div
+                              key={i}
+                              className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                              style={{ animationDelay: `${i * 0.1}s` }}
+                            ></div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Start Auction Control */}
+                  <div className="space-y-3">
+                    <Button
+                      onClick={handleStartAuction}
+                      disabled={isGenerating || !selectedAvatar}
+                      className={`w-full py-3 text-lg font-semibold transition-all ${
+                        isPlaying 
+                          ? 'bg-red-600 hover:bg-red-700 text-white' 
+                          : 'bg-green-600 hover:bg-green-700 text-white'
+                      }`}
+                    >
+                      {isGenerating ? (
+                        <>
+                          <div className="w-5 h-5 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                          Starting...
+                        </>
+                      ) : isPlaying ? (
+                        <>
+                          <Pause className="w-5 h-5 mr-2" />
+                          Stop Auction
+                        </>
+                      ) : (
+                        <>
+                          <Gavel className="w-5 h-5 mr-2" />
+                          Start Auction
+                        </>
+                      )}
+                    </Button>
+
+                    <div className="flex items-center justify-center text-sm text-slate-500">
+                      <Volume2 className="w-4 h-4 mr-2" />
+                      {isGenerating ? 'Preparing auctioneer...' : 
+                       isPlaying ? 'Auction in progress...' : 
+                       'Ready to start auction'}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Left Column - Auction Item */}
           <div className="lg:col-span-2 space-y-6">
             {/* Lot Information */}
@@ -391,55 +497,11 @@ export default function Home() {
                 </div>
               </CardContent>
             </Card>
-                        {/* Controls */}
-                        <Card className="border-slate-200">
-              <CardContent className="p-4">
-                <div className="space-y-4">
-                  <Button
-                    onClick={handleStartAuction}
-                    disabled={isGenerating || !selectedAvatar}
-                    className={`w-full py-3 text-lg font-semibold transition-all ${
-                      isPlaying 
-                        ? 'bg-red-600 hover:bg-red-700 text-white' 
-                        : 'bg-green-600 hover:bg-green-700 text-white'
-                    }`}
-                  >
-                    {isGenerating ? (
-                      <>
-                        <div className="w-5 h-5 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                        Starting...
-                      </>
-                    ) : isPlaying ? (
-                      <>
-                        <Pause className="w-5 h-5 mr-2" />
-                        Stop Auction
-                      </>
-                    ) : (
-                      <>
-                        <Gavel className="w-5 h-5 mr-2" />
-                        Start Auction
-                      </>
-                    )}
-                  </Button>
-                  
 
-
-
-
-                  <div className="flex items-center justify-center text-sm text-slate-500">
-                    <Volume2 className="w-4 h-4 mr-2" />
-                    {isGenerating ? 'Preparing auctioneer...' : 
-                     isPlaying ? 'Auction in progress...' : 
-                     !selectedAvatar ? 'Select an auctioneer to begin' :
-                     'Ready to start auction'}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
-          {/* Right Column - Auctioneer & Controls */}
-          <div className="space-y-6">
+          {/* Right Column - Auctioneer & Controls (Desktop Only) */}
+          <div className="hidden lg:block space-y-6">
             {/* Live Auctioneer with Selection */}
             <Card className="border-slate-200">
               <CardContent className="p-4">
@@ -479,7 +541,7 @@ export default function Home() {
                       </div>
                     ) : (
                       <div className="w-full aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center">
-                        <p className="text-slate-500">Select an auctioneer</p>
+                        <p className="text-slate-500">Loading auctioneer...</p>
                       </div>
                     )}
                     
@@ -518,44 +580,91 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Auctioneer Selection */}
-                  {isLoadingAvatars ? (
-                    <div className="text-center py-4">
-                      <div className="w-6 h-6 mx-auto animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+                  {/* Start Auction Control - Desktop */}
+                  <div className="space-y-3">
+                    <Button
+                      onClick={handleStartAuction}
+                      disabled={isGenerating || !selectedAvatar}
+                      className={`w-full py-3 text-lg font-semibold transition-all ${
+                        isPlaying 
+                          ? 'bg-red-600 hover:bg-red-700 text-white' 
+                          : 'bg-green-600 hover:bg-green-700 text-white'
+                      }`}
+                    >
+                      {isGenerating ? (
+                        <>
+                          <div className="w-5 h-5 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                          Starting...
+                        </>
+                      ) : isPlaying ? (
+                        <>
+                          <Pause className="w-5 h-5 mr-2" />
+                          Stop Auction
+                        </>
+                      ) : (
+                        <>
+                          <Gavel className="w-5 h-5 mr-2" />
+                          Start Auction
+                        </>
+                      )}
+                    </Button>
+
+                    <div className="flex items-center justify-center text-sm text-slate-500">
+                      <Volume2 className="w-4 h-4 mr-2" />
+                      {isGenerating ? 'Preparing auctioneer...' : 
+                       isPlaying ? 'Auction in progress...' : 
+                       'Ready to start auction'}
                     </div>
-                  ) : avatarError ? (
-                    <div className="text-center py-4">
-                      <p className="text-red-500 text-sm">{avatarError}</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-2">
-                      {avatars.map((avatar: Avatar) => (
-                        <Card 
-                          key={avatar.id}
-                          className={`cursor-pointer transition-all border ${
-                            selectedAvatar?.id === avatar.id 
-                              ? 'border-blue-500 bg-blue-50' 
-                              : 'border-slate-200 hover:border-slate-300'
-                          }`}
-                          onClick={() => setSelectedAvatar(avatar)}
-                        >
-                          <CardContent className="p-2 text-center">
-                            <Avatar className="w-10 h-10 mx-auto mb-1">
-                              <AvatarImage src={avatar.image} alt={avatar.name} />
-                              <AvatarFallback>{avatar.name[0]}</AvatarFallback>
-                            </Avatar>
-                            <p className="font-medium text-xs">{avatar.name}</p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
+
+      {/* Preload avatar image (hidden) */}
+      {selectedAvatar && (
+        <img 
+          src={selectedAvatar.image} 
+          alt="preload"
+          className="hidden"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Fixed Small Avatar (Mobile Only - appears when scrolled) */}
+      {isScrolled && selectedAvatar && (
+        <div className="lg:hidden fixed bottom-4 right-4 z-50">
+          <div className="relative">
+            <div 
+              className="rounded-full overflow-hidden border-2 border-white shadow-lg bg-white bg-cover bg-center bg-no-repeat" 
+              style={{ 
+                width: '150px', 
+                height: '150px',
+                backgroundImage: generatedVideoUrl ? 'none' : `url(${selectedAvatar.image})`
+              }}
+            >
+              {generatedVideoUrl ? (
+                <video
+                  src={generatedVideoUrl}
+                  className="w-full h-full object-cover rounded-full"
+                  autoPlay
+                  muted
+                  loop
+                />
+              ) : null}
+            </div>
+            {isPlaying && (
+              <div className="absolute -top-2 -right-2">
+                <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                  <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
